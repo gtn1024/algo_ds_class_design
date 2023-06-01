@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.1.0'
+    id 'io.spring.dependency-management' version '1.1.0'
+    id "com.github.node-gradle.node" version "5.0.0"
+}
+
+group = 'com.getaoning'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.apache.poi:poi-ooxml:5.2.3'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+}
+
+node {
+    download = true
+    version = '18.16.0'
+    nodeProjectDir = file("${project.projectDir}/web")
+}
+
+tasks.pnpmSetup {
+    args.addAll(['--registry', 'https://registry.npmmirror.com'])
+}
+
+tasks.register('buildFrontend', PnpmTask) {
+    dependsOn(tasks.pnpmInstall)
+    args = ['build']
+    outputs.dir("${project.projectDir}/web/dist")
+}
+
+tasks.register('cleanFrontendBuild', Delete) {
+    delete("${project.projectDir}/src/main/resources/static")
+}
+
+tasks.register('copyFrontendBuild', Copy) {
+    dependsOn(tasks.cleanFrontendBuild)
+    dependsOn(tasks.buildFrontend)
+
+    from("${project.projectDir}/web/dist")
+    into("${project.projectDir}/src/main/resources/static")
+}
+
+tasks.build.dependsOn(tasks.copyFrontendBuild)
+tasks.build.dependsOn(tasks.bootJar)
